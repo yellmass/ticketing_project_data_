@@ -2,10 +2,13 @@ package com.cydeo.service.impl;
 
 import com.cydeo.dto.UserDTO;
 import com.cydeo.entity.User;
+import com.cydeo.enums.Status;
 import com.cydeo.mapper.UserMapper;
-import com.cydeo.repository.ProjectRepository;
 import com.cydeo.repository.UserRepository;
+import com.cydeo.service.ProjectService;
+import com.cydeo.service.TaskService;
 import com.cydeo.service.UserService;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -16,10 +19,14 @@ import java.util.stream.Collectors;
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
+    private final ProjectService projectService;
+    private final TaskService taskService;
 
-    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper) {
+    public UserServiceImpl(UserRepository userRepository, UserMapper userMapper,@Lazy ProjectService projectService,@Lazy TaskService taskService) {
         this.userRepository = userRepository;
         this.userMapper = userMapper;
+        this.projectService = projectService;
+        this.taskService = taskService;
     }
 
     @Override
@@ -50,7 +57,16 @@ public class UserServiceImpl implements UserService {
     @Override
     public void delete(String username) {
         User user = userRepository.findByUserName(username);
-        user.setIsDeleted(true);
+        if(user.getRole().getDescription().equalsIgnoreCase("manager")){
+            if(projectService.listProjectsByManager().stream().allMatch(projectDTO -> projectDTO.getProjectStatus()==Status.COMPLETE)){
+                user.setIsDeleted(true);
+            }
+        }
+        else if (user.getRole().getDescription().equalsIgnoreCase("employee")){
+            if (taskService.listAllTasksByAssignedEmployeeUsername(username).stream().allMatch(taskDTO -> taskDTO.getTaskStatus()==Status.COMPLETE)){
+                user.setIsDeleted(true);
+            }
+        } else user.setIsDeleted(true); 
         userRepository.save(user);
     }
 

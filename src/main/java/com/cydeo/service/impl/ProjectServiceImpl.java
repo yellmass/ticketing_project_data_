@@ -80,7 +80,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         project.setProjectCode(project.getProjectCode() + "-" +project.getId());
 
-        taskService.listAllTasksByProjectId(project.getId())
+        taskService.listAllTasksByProjectCode(project.getProjectCode())
                 .forEach(taskDTO ->{
                     taskService.deleteById(taskDTO.getId());
                 });
@@ -91,15 +91,16 @@ public class ProjectServiceImpl implements ProjectService {
     public void complete(String code) {
         Project project = projectRepository.findByProjectCode(code).orElseThrow();
         project.setProjectStatus(Status.COMPLETE);
+        taskService.listAllTasksByProjectCode(code).forEach(taskDTO -> taskService.complete(taskDTO.getId()));
         projectRepository.save(project);
     }
 
     @Override
     public List<ProjectDTO> listProjectsByManager() {
-        UserDTO managerDTO = userService.findByUserName("samantha@manager.com");
+        UserDTO managerDTO = userService.findByUserName("harold@manager.com");
         User manager = userMapper.convertToEntity(managerDTO);
 
-        List<Project> projects = projectRepository.findAllByAssignedManager(manager);
+        List<Project> projects = projectRepository.findAllByAssignedManagerOrderByProjectCode(manager);
 
         return projects.stream()
                 .map(project  -> {

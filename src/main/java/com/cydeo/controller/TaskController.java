@@ -124,8 +124,6 @@ public class TaskController {
     public String employeeEditTask(@PathVariable Long id, Model model) {
 
         model.addAttribute("task", taskService.findById(id));
-//        model.addAttribute("projects", projectService.findAll());
-//        model.addAttribute("employees", userService.findEmployees());
         model.addAttribute("statuses", Status.values());
         model.addAttribute("tasks", taskService.listPendingTasks());
 
@@ -145,7 +143,7 @@ public class TaskController {
 
         }
 
-        taskService.updateStatus(task);
+        taskService.update(task);
 
         return "redirect:/task/employee/pending-tasks";
 

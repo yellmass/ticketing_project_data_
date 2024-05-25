@@ -1,13 +1,13 @@
 package com.cydeo.service.impl;
 
 import com.cydeo.dto.TaskDTO;
-import com.cydeo.entity.Project;
+import com.cydeo.dto.UserDTO;
 import com.cydeo.entity.Task;
 import com.cydeo.enums.Status;
 import com.cydeo.mapper.TaskMapper;
-import com.cydeo.repository.ProjectRepository;
 import com.cydeo.repository.TaskRepository;
 import com.cydeo.service.TaskService;
+import com.cydeo.service.UserService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -18,13 +18,14 @@ import java.util.stream.Collectors;
 public class TaskServiceImpl implements TaskService {
     private final TaskRepository taskRepository;
     private final TaskMapper taskMapper;
-    private final ProjectRepository projectRepository;
+    private final UserService userService;
 
-    public TaskServiceImpl(TaskRepository taskRepository, TaskMapper taskMapper, ProjectRepository projectRepository) {
+    public TaskServiceImpl(TaskRepository taskRepository, TaskMapper taskMapper, UserService userService) {
         this.taskRepository = taskRepository;
         this.taskMapper = taskMapper;
-        this.projectRepository = projectRepository;
+        this.userService = userService;
     }
+
 
     @Override
     public List<TaskDTO> listAllTasks() {
@@ -59,29 +60,25 @@ public class TaskServiceImpl implements TaskService {
     public void update(TaskDTO taskDTO) {
         Task taskToUpdate = taskMapper.convertToEntity(taskDTO);
         Task taskInDb = taskRepository.findById(taskDTO.getId()).orElseThrow();
-        taskToUpdate.setTaskStatus(taskInDb.getTaskStatus());
+        taskToUpdate.setTaskStatus(taskDTO.getTaskStatus()==null ?  taskInDb.getTaskStatus() :  taskDTO.getTaskStatus() );
         taskToUpdate.setAssignedDate(taskInDb.getAssignedDate());
         //taskToUpdate.setProject(projectRepository.findByProjectCode(taskDTO.getProject().getProjectCode()));
         taskRepository.save(taskToUpdate);
     }
 
     @Override
-    public void updateStatus(TaskDTO taskDTO) {
-        Task task = taskRepository.findById(taskDTO.getId()).orElseThrow();
-        task.setTaskStatus(taskDTO.getTaskStatus());
-        taskRepository.save(task);
-    }
-
-    @Override
     public List<TaskDTO> listPendingTasks() {
-        List<Task> pendingTasks = taskRepository.findAllByTaskStatusNot(Status.COMPLETE);
+        UserDTO loggedEmployee =  userService.findByUserName("john@employee.com");
+
+        List<Task> pendingTasks = taskRepository.findAllByTaskStatusNotAndAssignedEmployee_Id(Status.COMPLETE, loggedEmployee.getId());
 
         return pendingTasks.stream().map(taskMapper::convertToDto).collect(Collectors.toList());
     }
 
     @Override
     public List<TaskDTO> listAllTasksByStatus(Status taskStatus) {
-        List<Task> tasks = taskRepository.findAllByTaskStatus(taskStatus);
+        UserDTO loggedEmployee = userService.findByUserName("john@employee.com");
+        List<Task> tasks = taskRepository.findAllByTaskStatusAndAssignedEmployee_Id(taskStatus, loggedEmployee.getId());
         return tasks.stream().map(taskMapper::convertToDto).collect(Collectors.toList());
     }
 
@@ -98,8 +95,21 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public List<TaskDTO> listAllTasksByProjectId(Long projectId) {
-        List<Task> tasks = taskRepository.findAllByProject_Id(projectId);
+    public List<TaskDTO> listAllTasksByProjectCode(String projectCode) {
+        List<Task> tasks = taskRepository.findAllByProject_ProjectCode(projectCode);
+        return tasks.stream().map(taskMapper::convertToDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public void complete(Long taskId) {
+        Task task = taskRepository.findById(taskId).orElseThrow();
+        task.setTaskStatus(Status.COMPLETE);
+        taskRepository.save(task);
+    }
+
+    @Override
+    public List<TaskDTO> listAllTasksByAssignedEmployeeUsername(String username) {
+        List<Task> tasks = taskRepository.findAllByAssignedEmployee_UserName(username);
         return tasks.stream().map(taskMapper::convertToDto).collect(Collectors.toList());
     }
 }
